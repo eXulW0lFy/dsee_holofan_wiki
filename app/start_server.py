@@ -39,35 +39,6 @@ class Server:
 
         self.is_binary_mode = False
 
-    def launch(self):
-        self.create_connection()
-        self.menu()
-
-        # self.video = FragmentedVideo()
-        # path = os.path.join('media', input('Имя файла:'))
-        # self.video.open(os.path.abspath(path))
-        # logger.info(f'Video {self.video.path} was opened')
-
-        # self.video.split(frag_len=1)
-
-        # self.ready_to_send = Event()
-        # thread_encode = Thread(target=self.encoding,
-        #                        args=(),
-        #                        name='encoding fragments')
-
-        # thread_send = Thread(target=self.sending,
-        #                      args=(),
-        #                      name='sending fragments')
-        # try:
-        #     thread_encode.start()
-        #     thread_send.start()
-        #     thread_encode.join()
-        #     thread_send.join()
-        # finally:  # whatever happens, all connections will be closed
-        #     self.client_socket.close()
-        #     self.server_socket.close()
-        #     self.video.clear()
-
     def create_connection(self):
         """Creates socket connection with client.
 
@@ -228,63 +199,6 @@ class Server:
         response = self.client_socket.recv(self.buff_size)  # wait for b'01'
         logger.debug(response)
 
-    # def encoding(self):
-    #     self.last_encoded = -1
-    #     # create iterable path generator of all fragments
-    #     path_gen = self.video.get_path_generator()
-
-    #     for idx, path in path_gen:
-    #         self.video.encode(idx=idx)
-    #         self.last_encoded = idx
-    #         logger.debug(f'Video {path} was encoded')
-    #         self.ready_to_send.set()  # now it's encoded, can send fragment
-
-    # def sending(self):
-    #     path_gen = self.video.get_path_generator()
-
-    #     for idx, frag_path in path_gen:
-    #         # хз почему, без задержки клиент не видит "client.send(b'01')"
-    #         # time.sleep(0.1)
-    #         # if file to send hasn't been encoded yet
-    #         if self.last_encoded < idx:
-    #             self.ready_to_send.wait()  # wait until it is encoded
-
-    #         # create file header
-    #         header = binascii.unhexlify(
-    #             b'0c8c24a91f7138b1db5ed54308004500'
-    #             b'05dc9a0040008006d522c0a802a7c0a8'
-    #             b'020123f31f424087fde1010034205018'
-    #             b'010023c10000000000000020a1030000'
-    #             b'0000000000'
-    #         )
-    #         filename = os.path.basename(frag_path)
-    #         header += f'{len(filename):02x}{filename}'\
-    #             .encode('utf-8')
-
-    #         with open(frag_path, 'rb') as frag_file:
-    #             self.client_socket.send(b'01')  # begin sending fragment
-
-    #             # 70 + len(filename) bytes is header
-    #             # 1390 - len(filename) bytes remains for data
-    #             if len(header) > 0:
-    #                 data = frag_file.read(
-    #                     self.buff_size - len(header)
-    #                 )
-    #             self.client_socket.send(header + data)
-
-    #             # send rest of the file
-    #             while data := frag_file.read(self.buff_size):
-    #                 self.client_socket.send(header + data)
-    #             logger.debug(f'Video {frag_path} was sent')
-
-    #         # По окончании через 0,07 с придёт пакет b'01'
-    #         try:
-    #             response, _ = self.client_socket.recv(self.buff_size)
-    #             logger.debug(f'Response received ({idx=})')
-    #         except self.client_socket.timeout:
-    #             print('error')
-    #             logger.warning(f'Response not received ({idx=})')
-
 
 if __name__ == '__main__':
     """Prepares launch parameters.
@@ -297,7 +211,7 @@ if __name__ == '__main__':
         client_port (int): Port number in range [1024, 65535]
         buff_size (int): Max data size in packet. Default (1460) as in DSEE-65H
     """
-    # parsing command-line args
+    # parsing command line args
     parser = ArgumentParser()
     parser.add_argument('-i', '--ipaddr', type=str, default='localhost')
     parser.add_argument('-p', '--port', type=int, default=6060)
@@ -321,4 +235,3 @@ if __name__ == '__main__':
     server.create_connection()
     while True:
         server.menu()
-    # server.launch()

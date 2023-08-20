@@ -39,27 +39,6 @@ class Client:
 
         self.is_binary_mode = False
 
-    def launch(self):
-        pass
-        # self.video = FragmentedVideo()
-
-        # self.video_received = Event()
-        # thread_receive = Thread(target=self.receiving,
-        #                         args=(),
-        #                         name='receiving fragment')
-        # thread_play = Thread(target=self.playing,
-        #                      args=(),
-        #                      name='send pseudo stream')
-        # try:
-        #     thread_receive.start()
-        #     thread_play.start()
-        #     thread_receive.join()
-        #     thread_play.join()
-        # finally:  # whatever happens, all connections will be closed
-        #     self.server_socket.close()
-        #     self.video.clear()
-        # "\x05\x35\xa4\x05\x00\x00"
-
     def create_connection(self):
         """Creates socket connection.
 
@@ -153,79 +132,6 @@ class Client:
         print('Stop playing stream')
         return
 
-    # def receiving(self):
-    #     self.last_received = -1
-    #     idx = -1
-    #     while True:
-    #         idx += 1
-    #         # receiving b'01'
-    #         response = self.server_socket.recv(self.buff_size)
-    #         if response != b'01':
-    #             break
-    #         # we dont know file name yet
-    #         data = self.server_socket.recv(self.buff_size)
-    #         # first 69 bytes is header
-    #         # convert hex length to dec
-    #         logger.info(f'Converting {data[69:71]} from hex to dec')
-    #         length = int(data[69:71], 16)
-    #         # название файла
-    #         frag_path = os.path.join('media', 'tmp',
-    #                                  data[71:71+length].decode('utf-8'))
-
-    #         with open(frag_path, 'wb') as frag_file:
-    #             while True:
-    #                 data = self.server_socket.recv(self.buff_size)
-    #                 if not data:
-    #                     logger.debug(f'File {frag_file} has been written')
-    #                     break
-    #                 frag_file.write(data)
-    #         self.video.open(frag_file)
-
-    #         self.last_received = idx
-    #         self.video_received.set()  # now it's received, can play fragment
-
-    #         self.server_socket.send(b'01')  # file received
-
-    # def playing(self):
-    #     WINDOW_NAME = 'Dsee-65H Holofan Imitation'
-    #     cv2.namedWindow(WINDOW_NAME)
-    #     cv2.moveWindow(WINDOW_NAME, 0, 0)
-    #     cv2.resizeWindow(WINDOW_NAME, 800, 600)
-    #     logger.info(f'Player "{WINDOW_NAME}" has been initialized')
-
-    #     idx = -1
-    #     while True:
-    #         idx += 1
-
-    #         # if file to play hasn't been received yet
-    #         if self.last_received < idx:
-    #             self.video_received.wait()  # wait until it is received
-    #         frag_path = self.video.get_path(idx)
-
-    #         cap = cv2.VideoCapture(frag_path)
-    #         if not cap.isOpened():
-    #             logger.warning('Error opening file')
-    #             break
-
-    #         # Read the entire file until it is completed
-    #         while cap.isOpened():  # status OK
-    #             ret, frame = cap.read()
-    #             if not ret:
-    #                 break
-
-    #             cv2.imshow(WINDOW_NAME, frame)  # Display the resulting frame
-    #             if (cv2.waitKey(34) & 0xFF) == 27:  # Esc
-    #                 break  # whole playing ends
-
-    #     # When everything done, release the capture
-    #     cap.release()
-    #     cv2.destroyAllWindows()
-
-    #     logger.info('Stop playing stream')
-    #     print('Stop playing stream')
-    #     raise SystemExit('EXIT')
-
-
 if __name__ == '__main__':
     """Prepares launch parameters.
 
@@ -260,4 +166,3 @@ if __name__ == '__main__':
     client.create_connection()
     while True:
         client.receive()
-    # client.launch()
