@@ -7,6 +7,7 @@ from video import Video
 from command import Command
 
 
+# creating log file
 log_file = os.path.join('..', 'server.log')
 if not os.path.isfile(log_file) or \
         os.path.getsize(log_file) > 5120:
@@ -54,8 +55,7 @@ class Server:
             # '' opens socket for everyone
             server_socket.bind(('', self.server_port))
         except (socket.error, KeyboardInterrupt) as msg:
-            logger.warning(f'Server failed: {msg}')
-            print(msg)
+            logger.error(f'Unable to start server: {msg}')
             server_socket.close()
             quit(2)
         else:
@@ -67,8 +67,7 @@ class Server:
             server_socket.listen(1)
             client_socket, _ = server_socket.accept()
         except (socket.error, KeyboardInterrupt) as msg:
-            logger.warning(f'Client failed: {msg}')
-            print(msg)
+            logger.error(f'Unable to connect client: {msg}')
             client_socket.close()
             server_socket.close()
             quit(2)
@@ -80,6 +79,11 @@ class Server:
             self.client_socket = client_socket
 
     def menu(self):
+        """Displays menu of commands to select.
+
+        Displays menu and requests command number.
+        After inputting command, optional parameters may be requested.
+        """
         print('\n\nВыберите команду')
         print('\t0. Выйти')
         print('\t1. Выбрать видеофайл')
@@ -101,6 +105,7 @@ class Server:
         print('\t17. Изменить интервал между видео')
         print('\t18. Изменить скорость вентилятора')
 
+        # input command number
         i = int(input('>>> '))
         match i:
             case 0:
@@ -108,11 +113,14 @@ class Server:
                 self.client_socket.close()
                 quit(0)
             case 1:
+                # if 1, send file
                 file_name = input('Введите имя файла: ')
                 file_path = os.path.join('..', 'media', file_name)
                 # print(os.path.abspath(file_path))
                 file = Video(os.path.abspath(file_path))
                 self.send_file(file)
+
+                # end running `menu` method (go to next loop iteration)
                 return
             case 2:
                 command = Command().fan_on()
@@ -180,24 +188,57 @@ class Server:
             case _:
                 return
 
+        logger.debug(f'Op number (in menu): {i},'
+                     f'p: {p if "p" in locals() else "-"}')
+
+        # command won't be send if `Выбрать видеофайл` was selected
         self.send_command(command)
 
     def send_command(self, request: Command):
+        """Send command, which must be initiated firstly.
+
+        To initiate use `Command()` and select method (eg. `reset_settings`)
+
+        Args:
+            request (Command): initiated command to send
+        """
         self.client_socket.send(request.get_data())
-        response = self.client_socket.recv(self.buff_size)  # wait for response
-        logger.debug(response)
+        logger.info(f'Command `{request}` was sent')  # using Command.__str__()
+
+        # wait for response
+        response = self.client_socket.recv(self.buff_size)
+        logger.info('Response received')
 
     def send_file(self, file: Video):
+        """Send video file, which must be initiated firstly.
+
+        To initiate use `Video(path)`, where `path` is path to video file
+
+        Args:
+            file (Video): initiated video file
+        """
+        # Before sending file binary mode must be enabled
+        # After sending & receiving response binary mode must be disabled
         self.is_binary_mode = True
-        self.client_socket.send(b'\x01')  # binary mode
+        # Send `change binary mode` status (b'01')
+        self.client_socket.send(b'\x01')
+        logger.debug('Enter binary mode')
         data = file.get_data()
+
+        # `packet_idx * buff_size` - begin of packet (eg. 3*1460=4380)
+        # `(packet_idx+1) * buff_size` - end of packet (eg. 4*1460=5840)
         packet_idx = 0
+        # if begin of packet NOT less than length of file - break loop
         while packet_idx * buff_size < len(data):
             self.client_socket.send(data[packet_idx * buff_size:
                                          (packet_idx+1) * buff_size])
             packet_idx += 1
-        response = self.client_socket.recv(self.buff_size)  # wait for b'01'
-        logger.debug(response)
+
+        logger.info(f'File `{file}` was sent')  # using Video.__str__()
+
+        # receive `change binary mode` status (b'01')
+        response = self.client_socket.recv(self.buff_size)
+        logger.debug('Exit binary mode')
 
 
 if __name__ == '__main__':

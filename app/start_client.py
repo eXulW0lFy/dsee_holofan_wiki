@@ -1,13 +1,20 @@
+try:
+    import cv2
+except ImportError:
+    print('You must install opencv-python and numpy. '
+          'To get more info see `requirements.txt` file.')
+    print('Необходимо установить opencv-python и numpy. '
+          'Для подробностей см. файл `requirements.txt`.')
 import binascii
 import socket
 import sys
 import os
 from argparse import ArgumentParser, ArgumentTypeError
 import logging
-import cv2
 from command import Command
 
 
+# creating log file
 log_file = os.path.join('..', 'client.log')
 if not os.path.isfile(log_file) or \
         os.path.getsize(log_file) > 5120:
@@ -52,85 +59,100 @@ class Client:
             server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             server_socket.connect((self.server_ip, self.server_port))
         except ConnectionRefusedError as msg:
-            logger.warning(f'Connection failed: {msg}')
-            print(f'Connection failed: {msg}')
+            logger.error(f'Unable to connect to server: {msg}')
             quit(2)
         else:
-            logger.warning(f'Client connected to server {self.server_ip}')
-            print(f'Client connected to server {self.server_ip}')
+            logger.info(f'Client connected to server {self.server_ip}')
             # server_socket.settimeout(0.2)
             self.server_socket = server_socket
 
-    def receive(self):
-        request = self.server_socket.recv(self.buff_size).hex()
-        logger.debug(request)
-        if request.startswith('05'):
-            op_name = Command.describe(request)
-            print(f'Received command: {op_name}')
-            logger.info(f'Received command: {op_name}')
-
-            # call function by str name
-            response = getattr(Command(), op_name)(is_request=False)
-            self.server_socket.send(response.get_data())  # file received
-        elif request == '01':
+    def menu(self):
+        """Receive packet and check type (command or file)"""
+        received = self.server_socket.recv(self.buff_size).hex()
+        logger.debug(f'Received {received[:12]}')
+        if received.startswith('05'):  # commands
+            self.receive(received)
+        elif received == '01':  # files
             self.is_binary_mode = True
-            self.receive_file()
+            # receive file
+            received = self.server_socket.recv(self.buff_size)
+            self.receive_file(received)
             self.is_binary_mode = False
 
-    def receive_file(self):
-        data = b''
-        receive = self.server_socket.recv(self.buff_size)
-        file_size = int(binascii.hexlify(receive[:10]), 16)
-        name_len = int(binascii.hexlify(receive[14:16]), 16)
-        file_path = os.path.join('..', 'media', 'tmp',
-                                 receive[16:16+name_len].decode('utf-8'))
+    def receive(self, received: str):
+        """Parse received command"""
+        op_code = int(received[6:8], 16)
+        op_name = Command.describe(op_code)
+        print(f'Received command: {op_name}')
+        logger.info(f'Received command: {op_name}')
 
-        data += receive
+        # call function by str name
+        response = getattr(Command(), op_name)(is_request=False)
+        self.server_socket.send(response.get_data())  # file received
+        logger.debug('Response has been sent')
+
+    def receive_file(self, received: str):
+        """Receive and parse video file"""
+        data = b''
+        file_size = int(binascii.hexlify(received[:10]), 16)
+        name_len = int(binascii.hexlify(received[14:16]), 16)
+        file_path = os.path.join('..', 'media', 'tmp',
+                                 received[16:16+name_len].decode('utf-8'))
+        logger.debug(f'Received {received[:16+name_len]}')
+
+        data += received
         while len(data) < file_size:
-            print(f'{len(data)} < {file_size}')
-            receive = self.server_socket.recv(self.buff_size)
+            received = self.server_socket.recv(self.buff_size)
             if len(data) >= file_size:
-                logger.debug('File has been received')
+                logger.info('File has been received')
                 break
-            data += receive
+            data += received
+
+        # Send `change binary mode` status (b'01')
         self.server_socket.send(b'\x01')
 
         with open(file_path, 'wb') as file:
             file.write(data[16+name_len:])
-            print('file was written')
+            logger.info('File was written')
+
         self.play(file_path)
 
     def play(self, file_path):
+        """Play video file using OpenCV (cv2) python library.
+
+        Args:
+            file_path (_type_): path to file
+        """
         WINDOW_NAME = 'Dsee-65H Holofan Imitation'
         cv2.namedWindow(WINDOW_NAME)
         cv2.moveWindow(WINDOW_NAME, 0, 0)
         cv2.resizeWindow(WINDOW_NAME, 800, 600)
-        logger.info(f'Player "{WINDOW_NAME}" has been initialized')
+        logger.info(f'Window named "{WINDOW_NAME}" has been opened')
 
         cap = cv2.VideoCapture(file_path)
         if not cap.isOpened():
-            logger.warning('Error opening file')
-            cap.release()
-            cv2.destroyAllWindows()
+            logger.error('Error opening file')
+            cap.release()  # clear window
+            cv2.destroyAllWindows()  # close window
+            logger.info(f'Window named "{WINDOW_NAME}" has been closed')
             return
 
         # Read the entire file until it is completed
-        while cap.isOpened():  # status OK
+        while cap.isOpened():  # while status OK
             ret, frame = cap.read()
-            if not ret:
+            if not ret:  # if status not OK: break
                 break
 
-            cv2.imshow(WINDOW_NAME, frame)  # Display the resulting frame
+            cv2.imshow(WINDOW_NAME, frame)  # else: display frame
             if (cv2.waitKey(34) & 0xFF) == 27:  # Esc
                 break  # whole playing ends
 
         # When everything done, release the capture
-        cap.release()
-        cv2.destroyAllWindows()
-
-        logger.info('Stop playing stream')
-        print('Stop playing stream')
+        cap.release()  # clear window
+        cv2.destroyAllWindows()  # close window
+        logger.info(f'Window named "{WINDOW_NAME}" has been closed')
         return
+
 
 if __name__ == '__main__':
     """Prepares launch parameters.

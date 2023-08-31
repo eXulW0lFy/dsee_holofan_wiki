@@ -3,6 +3,7 @@ import logging
 import os
 
 
+# creating log file
 log_file = os.path.join('..', 'command.log')
 if not os.path.isfile(log_file) or \
         os.path.getsize(log_file) > 5120:
@@ -16,6 +17,11 @@ logger.setLevel(logging.DEBUG)
 
 
 class Command():
+    """Constructor for composing packets for various holofan commands.
+
+    Raises:
+
+    """
     operations = {
         'fan_on': 1,
         'fan_off': 2,
@@ -36,20 +42,54 @@ class Command():
         'set_rotation_speed': 55
     }
 
-    def __init__(self) -> None:
+    def __init__(self):
         """General class for every type of command."""
         self._packet = b''
         self.op_code = 0
         self.parameters = 0
 
+    def __str__(self):
+        """Returns string representation of class.
+
+        Usage:
+            str(command)
+            f'{command}'
+        """
+        # search op_name in `Command.operations` dict
+        for key, value in Command.operations.items():
+            if value == self.op_code:
+                op_name = key
+                break
+
+        if self.parameters == 0:
+            return f'Name: {op_name}'
+        else:
+            return f'Name: {op_name}, Params: {self.parameters}'
+
     @staticmethod
     def get_op_code(op_name: str) -> int:
+        """Returns dec code for str name of holofan command.
+
+        Args:
+            op_name (str): name of command (see `Command.operations`)
+
+        Raises:
+            KeyError: unknown name of command
+
+        Returns:
+            int: decimal code of operation
+        """
         op_code = Command.operations.get(op_name, None)
         if op_code is None:
             raise KeyError('Unknown operator name')
         return op_code
 
-    def get_data(self) -> str:
+    def get_data(self) -> bytes:
+        """Create raw data (`self._packet`) for further sending.
+
+        Returns:
+            bytes: raw packet data
+        """
         if self.is_request is True:
             self._packet += binascii.unhexlify('05')  # mode
         self._packet += binascii.unhexlify('35a4')  # unknown (id?)
@@ -60,8 +100,16 @@ class Command():
         return self._packet
 
     @staticmethod
-    def describe(data: str) -> str:
-        op_code = int(data[6:8], 16)
+    def describe(op_code: int) -> str:
+        """Describes op_code to str name of operation. See `Command.operations`
+        for more.
+
+        Args:
+            op_code (int): decimal code of operation
+
+        Returns:
+            str: name of command
+        """
         op_name = 'unknown'
         for key, value in Command.operations.items():
             if value == op_code:
