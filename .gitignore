@@ -27,3 +27,4 @@ venv.bak/
 
 *.log
 media/
+*.drawio*

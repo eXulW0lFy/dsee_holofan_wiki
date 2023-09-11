@@ -30,7 +30,7 @@ logger.setLevel(logging.DEBUG)
 class Client:
     def __init__(self,
                  server_ip: str,
-                 server_port: int,
+                 client_port: int,
                  buff_size: int) -> None:
         """Creates instance of client
 
@@ -41,7 +41,7 @@ class Client:
                 Default (1460) as in DSEE-65H
         """
         self.server_ip = server_ip
-        self.server_port = server_port
+        self.client_port = client_port
         self.buff_size = buff_size
 
         self.is_binary_mode = False
@@ -57,7 +57,7 @@ class Client:
             # socket.AF_INET = IPv4; socket.SOCK_STREAM = TCP
             server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            server_socket.connect((self.server_ip, self.server_port))
+            server_socket.connect((self.server_ip, self.client_port))
         except ConnectionRefusedError as msg:
             logger.error(f'Unable to connect to server: {msg}')
             quit(2)
