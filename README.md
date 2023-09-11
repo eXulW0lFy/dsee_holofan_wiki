@@ -4,7 +4,7 @@ This is a control app for DSEE holofans.
 
 ## Code structure
 
-![UML-diagram](./classes.png)
+![UML-diagram](https://gitflic.ru/project/exulw0lfy/dsee_holofan/blob/raw?file=classes.png&commit=f181c870305e9022ae68feb96cf62d72600042ad)
 
 ### Connection
 
